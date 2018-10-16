@@ -1,6 +1,7 @@
 function emailToSheet() {
-  var sheet_url = ''
-  var sheet_name = 'シート1'
+
+  var sheet_url = 'xxx'
+  var sheetName = '自動まとめる'
 
   var immediately_reservation_title = "label:今すぐ予約"
   var booking_is_done_title = "label:予約完了"
@@ -8,20 +9,37 @@ function emailToSheet() {
   var immediately_reservation = '(' + immediately_reservation_title + ' after: ' + yesterday() + 'before: ' + today() + ')'
   var booking_is_done = '(' + booking_is_done_title + ' after: ' + yesterday() + 'before: ' + today() + ')'
   var target_query = immediately_reservation + 'OR' + booking_is_done
+  var subRegExp = /^(【*.*】)+(★)+([0-9A-Z]{7})/
 
   var target_threads = GmailApp.search(target_query)
+  var ss = SpreadsheetApp.getActive().getSheetByName( sheetName );
+  var row = ss.getLastRow() + 1;
 
   if (target_threads.length !== 0) {
-    // for (var i = 0; i < target_threads.length; i++) {
-    //   var messages = target_threads[i].getMessages()
-    //   for (var m = 0; m < messages.length; m++) {
-    //     var msg = messages[m].getBody()
-    //     Logger.log(msg)
-    //   }
-    // }
-    var messages = target_threads[4].getMessages()
+    for (var i = 0; i < target_threads.length; i++) {
+      var messages = target_threads[i].getMessages()
+      for (var m = 0; m < messages.length; m++) {
+        var roomCodeTemp = messages[m].getSubject().match(subRegExp)
+        if (roomCodeTemp === null) {
+          continue;
+        }
+        var roomCode = roomCodeTemp[3]
+        // Logger.log(messages[m].getSubject().match(subRegExp)[2])
+        var msg = messages[m].getPlainBody()
+        var d = getDatabyMailBody(msg)
+        var valuesTemp = [
+          [roomCode, d.bookingId, d.guestOfNumber, d.checkInData, d.checkOutData, d.checkInTime, d.checkOutTime, d.usedTime]
+        ]
+
+        values = valuesTemp[0].concat(d.facilities)
+        Logger.log(values[0].length)
+        ss.getRange(row, 1, 1, values[0].length).setValues(values)
+        row++
+      }
+    }
+    // var messages = target_threads[1].getMessages()
     // Logger.log(messages[0].getPlainBody())
-    Logger.log(getDatabyMailBody(messages[0].getPlainBody()))
+    // Logger.log(getDatabyMailBody(messages[0].getPlainBody()))
   }
 }
 
@@ -59,7 +77,10 @@ function getDatabyMailBody( body ) {
     checkOutDate =  new Date(checkOut)
   }
 
-  var facilities =body.match(/設備・サービス.*/).toString().replace(/設備・サービス/, "").facilities.split('、')
+
+  if (body.match(/設備・サービス.*/)) {
+    var facilities =body.match(/設備・サービス.*/).toString().replace(/設備・サービス/, "").split('、')
+   }
   // if (facilities) {
   //   Logger.log(facilities.split('、')[0])
   // }
@@ -76,7 +97,7 @@ function getDatabyMailBody( body ) {
       checkOutData: Utilities.formatDate(checkOutDate,Session.getScriptTimeZone(), 'yyyy/MM/dd'),
       checkInTime: checkInDate.getHours() + ':' + '00',
       checkOutTime: checkOutDate.getHours() + ':' + '00',
-      usedTime: (checkOutDate - checkInDate) / 36e5,
-     facilities: facilities
+      usedTime: Math.abs((checkOutDate - checkInDate) / 36e5),
+      facilities: facilities || []
    }
  }
