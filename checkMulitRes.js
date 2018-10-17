@@ -1,19 +1,16 @@
-function emailToSheet() {
+function checkMultRes() {
 
-  var sheet_url = 'xx'
-  var sheetName = '予約情報自動読込'
 
   var immediately_reservation_title = "label:今すぐ予約"
   var booking_is_done_title = "label:予約完了"
 
-  var immediately_reservation = '(' + immediately_reservation_title + ' after: ' + yesterday() + 'before: ' + today() + ')'
-  var booking_is_done = '(' + booking_is_done_title + ' after: ' + yesterday() + 'before: ' + today() + ')'
+  var immediately_reservation = '(' + immediately_reservation_title + ' after: ' + today() + ')'
+  var booking_is_done = '(' + booking_is_done_title + ' after: ' + today() + ')'
   var target_query = immediately_reservation + 'OR' + booking_is_done
   var subRegExp = /^(【*.*】)+(★)+([0-9A-Z]{7})/
   Logger.log(target_query)
+  // var TEST  = "203898"
   var target_threads = GmailApp.search(target_query)
-  var ss = SpreadsheetApp.getActive().getSheetByName( sheetName );
-  var row = ss.getLastRow() + 1;
 
   if (target_threads.length !== 0) {
     for (var i = 0; i < target_threads.length; i++) {
@@ -27,18 +24,16 @@ function emailToSheet() {
         // Logger.log(messages[m].getSubject().match(subRegExp)[2])
         var msg = messages[m].getPlainBody()
         var getMessageTime = Utilities.formatDate(messages[m].getDate(), 'Asia/Tokyo', 'yyyy/MM/dd');
-        if (getMessageTime !== yesterday) {
-          Logger.log(getMessageTime === today())
+        if (getMessageTime !== today() || messages[m].isStarred() === true)  {
           continue;
         }
         var d = getDatabyMailBody(msg)
-        var valuesTemp = [
-          [roomCode, d.bookingId, getMessageTime, d.guestOfNumber, d.checkInData, d.checkInTime, d.checkOutData,  d.checkOutTime, d.usedTime, d.reference]
-        ]
-
-        values = [valuesTemp[0].concat(d.facilities)]
-        ss.getRange(row, 1, 1, values[0].length).setValues(values)
-        row++
+        if (d.reference.length >= 2) {
+          var messageBody = "```" +  messages[m].getSubject() + '  ' + d.bookingId + '  ' + d.reference + "```"
+          postToSlack(messageBody)
+          Logger.log(messages[m])
+          messages[m].star()
+        }
       }
     }
     // var messages = target_threads[1].getMessages()
@@ -54,6 +49,7 @@ function yesterday(){
   var startDate = Utilities.formatDate(yesterday, 'Asia/Tokyo', 'yyyy/MM/dd');
   return startDate;
 }
+
 function today() {
   var today = new Date();
   var yesterday = new Date(today.getTime());
@@ -67,7 +63,8 @@ function getDatabyMailBody( body ) {
   var usedTimeData
   var usedTempDate = body.match(/利用期間.*/).toString().split('、')
   var referenceDate
-  Logger.log(usedTempDate)
+  // Logger.log(usedTempDate)
+  // Logger.log(usedTempDate.length)
   if (usedTempDate.length >= 2 ) {
     referenceDate = body.match(/利用期間.*/).toString()
     usedTimeData = body.match(/利用期間.*/).toString().split('、')[0]
@@ -114,4 +111,30 @@ function getDatabyMailBody( body ) {
       reference: referenceDate || ' ' ,
       facilities: facilities || []
    }
+ }
+
+
+ function postToSlack(messageBody) {
+   // var postUrl = 'xx';
+   //var postUrl = 'xxx';
+   var username = 'botbot';  // 通知時に表示されるユーザー名
+   var icon = ':hatching_chick:';  // 通知時に表示されるアイコン
+   var message = messageBody
+
+   var jsonData =
+   {
+      "username" : username,
+      "icon_emoji": icon,
+      "text" : message
+   };
+   var payload = JSON.stringify(jsonData);
+
+   var options =
+   {
+     "method" : "post",
+     "contentType" : "application/json",
+     "payload" : payload
+   };
+
+   UrlFetchApp.fetch(postUrl, options);
  }
