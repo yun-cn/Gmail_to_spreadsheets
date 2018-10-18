@@ -111,7 +111,7 @@ function getDatabyMailBody( body ) {
       checkInTime: (checkInDate.getHours() === 0.0 ? '00' : checkInDate.getHours()) + ':' + '00',
       checkOutTime: (checkOutDate.getHours() === 0.0 ? '24' : checkOutDate.getHours())  + ':' + '00',
       usedTime: Math.abs((checkOutDate - checkInDate) / 36e5),
-      reference: referenceDate || ' ' ,
+      reference: referenceDate || ' ',
       facilities: facilities || []
    }
  }
