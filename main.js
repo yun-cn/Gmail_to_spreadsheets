@@ -95,8 +95,6 @@ function getDatabyMailBody( body ) {
   if (body.match(/設備・サービス.*/)) {
     var facilities =body.match(/設備・サービス.*/).toString().replace(/設備・サービス/, "").split('、')
    }
-  // if (facilities) {
-  //   Logger.log(facilities.split('、')[0])
   return {
       bookingId: bookingId,
       guestOfNumber: guestOfNumber,
